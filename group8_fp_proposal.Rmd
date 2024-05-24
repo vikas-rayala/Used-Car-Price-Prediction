@@ -1,0 +1,212 @@
+---
+title: "Used Cars_Selling Price Prediction"
+author: "Group 8"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+car.data <- read.csv("~/Downloads/car_data.csv")
+```
+
+## 1. Introduction:
+
+The dataset which we are going to work on is 'cars' dataset.
+
+-   Our group is interested in finding out the selling price of our different cars based on their usage and different factors.
+
+-   The reason why we are interested on this is to compare our actual values with the prediction so that we can know how accurate the predictions can be.
+
+-   The price of a car depends on a lot of factors like the goodwill of the brand of the car, features of the car, horsepower and the mileage it gives and many more, So there may be some outliers and may not be as well we will discuss it in detail further.
+
+## 2. Data:
+
+-   This data is cumulative collection of 9 Variables with 301 rows/observations. This data includes different variables like different car brands and the year when they were manufactured and type of fuel along with the transmission type.
+
+-   Based on the data from dataset and the observations which are noted for all the variables it can assumed that the data is collected by SRS. All the 301 observations were randomly taken as no values are similar because they were different brands of cars, years manufactured, different transmission types or no owners were similar. So this was the data of 301 different random cars.
+
+-   The data was of Indian used cars with 9 different variables. The all 9 Variables were:
+
+-   `Car_Name`, `year` , `Selling_Price`, `Present_Price`, `Fuel_type`, `Kms_driven`, `Seller_type`, `Transmission`, `Owner`.
+
+    **Summary Statistics**
+
+    ```{r}
+    apply(car.data[, c(3, 5)], 2, mean)
+    apply(car.data[, c(3, 5)], 2, sd)
+    ```
+
+    | Variable          | Mean        | SD          |
+    |-------------------|-------------|-------------|
+    | **Selling Price** | 4.66 Lakhs  | 5.08 Lakhs  |
+    | **Kms_Driven**    | 36947.21Kms | 38886.88Kms |
+
+    **Checking Null Values**
+
+    ```{r}
+    sum(is.na(car.data))
+    #percent missing values per variable
+    apply(car.data, 2, function(col)sum(is.na(col))/length(col))
+
+    #Removing Extreme Outlier of kms driven (more than 1lakh kms.)
+    dc <- car.data[car.data$Kms_Driven < 100000, ]
+
+    ```
+
+## 3. Data Analysis
+
+-   Predictor of Interest (x): `Kms_Driven` : As they are used cars and we can't control the kilometers driven
+
+-   Response Variable (Y): `Selling_Price` : We are interested to find the price at which it can be sold.
+
+-   Confounder variables:
+
+    -   Transmission:
+
+    -   Fuel_type
+
+    -   Year
+
+    -   Car_name
+
+    ```{r}
+    library(ggplot2)
+    ggplot(car.data, aes(x = Kms_Driven, y = Selling_Price, color = Fuel_Type))+
+      labs( x = "Kilometers Driven" ,
+            y = " Selling Price (Lakhs)",
+          title = "Relationship b/w Selling price & Kilometers Driven with Fuel Type")+
+      geom_point()
+    ```
+
+    ```{r}
+    library(dplyr)
+    car.data %>% 
+      ggplot()+
+      geom_boxplot(aes(x=Kms_Driven, y=Selling_Price, fill = Transmission))
+
+    ggplot(car.data, aes(x = Kms_Driven, y = Selling_Price, color = Year))+
+      labs( x = "Kilometers Driven" ,
+            y = " Year",
+          title = "Relationship b/w Selling price & Kilometers Driven with Year")+
+      geom_point()
+    ```
+
+#### 3.1. Hypothesis
+
+**Equation** :
+
+\* $y=\beta_0+\beta_1*x+\epsilon$ \*
+
+$y=Response Variable$
+
+$x=Predictor of intrest$
+
+$\beta_0 = Intercept Coefficient$
+
+$\beta_1 = predictors's Cofficient$
+
+$\epsilon = error$
+
+**Declaring Hypothesis:**
+
+$H_0: \beta_1 = 0$ = The selling price is not affected by kms driven.
+
+$H_1: \beta_1 < 0$ = Selling price is negatively affected by Kms driven.
+
+**1Checking Conditions:**
+
+**LINE**
+
+1.  Linearity
+
+```{r}
+library(ggplot2)
+ggplot(car.data, aes(x = (Kms_Driven/100), y = Selling_Price))+
+  labs( x = "Kilometers Driven" ,
+        y = " Selling Price (Lakhs)",
+      title = "Relationship b/w Selling price & Kilometers Driven")+
+  geom_point()+
+  geom_smooth()
+```
+
+#### Independence
+
+Simple Random sampling is used hence the condition is satisfied.
+
+#### Normality of Residuals
+
+```{r}
+# Run SLR model
+model <- lm(Selling_Price ~ Kms_Driven, data = car.data)
+
+# Check Normality Assumption
+
+qqnorm(resid(model))
+
+qqline(resid(model), col = "red")
+```
+
+**Equal Variance**
+
+```{r}
+# Check Equal (Constant) Variance Assumption
+plot(resid(model) ~ fitted(model), main = "Residuals vs. Fitted")  ## Could also use resid(mod)
+abline(h = 0, col = "red")
+```
+
+```{r}
+# Primary Analysis With Extreme Outlier 
+cor(car.data$Kms_Driven, car.data$Selling_Price)
+model <- lm(Selling_Price ~ Kms_Driven, data = car.data)
+model
+summary(model)
+confint(model)
+sigma(model)*100/mean(car.data$Selling_Price)
+
+
+```
+
+**Hypothesis 1: Results**
+
+From the output above:
+
+-   the estimated regression line equation can be written as follow: `selling price = 4.52 + 0.000003815*kms driven` .
+
+-   It means every unit change of kms driven there is 0.000003815 change in selling price of used car.
+
+-   P Value for negative test : $(1-\frac{p}{2})$ = 0.693
+
+-   $\alpha = 0.05$
+
+-   **Conclusion**: As $p>\alpha$ we failed to reject null hypothesis. We don't have any enough evidence that the selling price is not affected by kms_driven. Seems to be there is an positive relation between x and y.
+
+    **Secondary Analysis**
+
+```{r}
+#Second Analysis by removing some observations of kms-driven 
+cor(dc$Kms_Driven, dc$Selling_Price)
+model_new <- lm(Selling_Price ~ Kms_Driven, data = dc)
+model_new
+summary(model_new)
+confint(model_new)
+sigma(model_new)*100/mean(dc$Selling_Price)
+
+```
+
+From the output above:
+
+-   the estimated regression line equation can be written as follow: `selling price = 3.71+0.00002889*kms driven` .
+
+-   It means every unit change of kms driven there is 0.00002889 change in selling price of used car.
+
+-   P Value for negative test : $(1-\frac{p}{2})$ = 0.98
+
+-   $\alpha = 0.05$
+
+-   **Conclusion**: As $p>\alpha$ we failed to reject null hypothesis. We don't have any enough evidence that the selling price is not affected by kms_driven. Seems to be there is an positive relation between x and y.
+
+From both the results we have observed that selling price is increasing as no of kilometers driven increased. It means the models are showing a positive relationship, but it should not be the case. So this because of the confounders and the less no of observations.
